@@ -11,14 +11,9 @@ app = FastAPI(title="SMT Alert Server")
 
 TELEGRAM_TOKEN   = os.getenv("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
-TWILIO_SID       = os.getenv("TWILIO_SID", "")
-TWILIO_TOKEN     = os.getenv("TWILIO_TOKEN", "")
-TWILIO_FROM      = os.getenv("TWILIO_FROM", "")
-SMS_TO           = os.getenv("SMS_TO", "")
 WEBHOOK_SECRET   = os.getenv("WEBHOOK_SECRET", "")
 
 USE_TELEGRAM = bool(TELEGRAM_TOKEN and TELEGRAM_CHAT_ID)
-USE_SMS      = bool(TWILIO_SID and TWILIO_TOKEN and TWILIO_FROM and SMS_TO)
 
 async def send_telegram(text: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -32,15 +27,20 @@ def format_message(payload: dict) -> str:
     price  = payload.get("price", "?")
     tf     = payload.get("timeframe", "?")
     time_  = payload.get("time", "")
-    emoji  = "🟢" if "BUY" in signal else "🔴" if "SELL" in signal else "⚪"
-    lines  = [f"{emoji} SMT ALERT — {signal}", f"Ticker:    {ticker}", f"Price:     {price}", f"Timeframe: {tf}"]
+    if "BUY" in signal:
+        emoji = "GREEN"
+    elif "SELL" in signal:
+        emoji = "RED"
+    else:
+        emoji = "ALERT"
+    lines = [f"{emoji} SMT ALERT - {signal}", f"Ticker: {ticker}", f"Price: {price}", f"Timeframe: {tf}"]
     if time_:
-        lines.append(f"Time:      {time_}")
+        lines.append(f"Time: {time_}")
     return "\n".join(lines)
 
 @app.get("/")
 async def health():
-    return {"status": "ok", "telegram": USE_TELEGRAM, "sms": USE_SMS}
+    return {"status": "ok", "telegram": USE_TELEGRAM}
 
 @app.post("/webhook")
 async def webhook(request: Request):
